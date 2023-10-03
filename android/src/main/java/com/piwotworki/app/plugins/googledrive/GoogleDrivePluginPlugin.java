@@ -11,9 +11,7 @@ import java.io.IOException;
 
 @CapacitorPlugin(name = "GoogleDrivePlugin")
 public class GoogleDrivePluginPlugin extends Plugin {
-
     private GoogleDrivePlugin implementation = new GoogleDrivePlugin();
-
     @PluginMethod
     public void echo(PluginCall call) {
         String value = call.getString("value");
@@ -21,10 +19,8 @@ public class GoogleDrivePluginPlugin extends Plugin {
         ret.put("value", implementation.echo(value));
         call.resolve(ret);
     }
-
     @PluginMethod
     public void storeRecipes(PluginCall call) {
-
         try {
             String recipesJson = call.getString("recipesJson");
             String authToken = call.getString("authToken");
@@ -39,4 +35,22 @@ public class GoogleDrivePluginPlugin extends Plugin {
             call.resolve(ret);
         }
     }
+
+    @PluginMethod
+    public void fetchRecipes(PluginCall call) {
+        try {
+            String authToken = call.getString("authToken");
+            String[] retVal = implementation.fetchRecipes(authToken);
+
+            JSObject ret = new JSObject();
+            ret.put("recipesJson", retVal[0]);
+            ret.put("status", retVal[1]);
+            call.resolve(ret);
+        } catch(IOException ex) {
+            JSObject ret = new JSObject();
+            ret.put("status", "IOException: " + ex.getMessage());
+            call.resolve(ret);
+        }
+    }
+
 }

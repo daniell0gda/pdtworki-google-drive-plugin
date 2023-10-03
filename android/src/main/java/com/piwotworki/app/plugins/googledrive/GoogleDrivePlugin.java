@@ -13,22 +13,60 @@ import com.google.auth.oauth2.GoogleCredentials;
 
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class GoogleDrivePlugin {
 
+    public String[] fetchRecipes(String accessToken) throws IOException
+    {
+        try {
+            var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
+            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
+            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
+            Drive service = new Drive.Builder(new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance(),
+                    requestInitializer)
+                    .setApplicationName("Piwotworki")
+                    .build();
+            var fileList = service
+                    .files()
+                    .list()
+                    // .setQ("'appDataFolder' in parents and name = 'recipes.dump'")
+                    .setQ("name = 'recipes.dump'")
+                    .execute();
+            var foundFiles = fileList.getFiles();
+            if(foundFiles.isEmpty()) {
+                return new String[] { "No file found", "NOT_OK" };
+            }
+
+            var foundFile = foundFiles.get(0);
+            var id = foundFile.getId();
+            var baos = new ByteArrayOutputStream();
+
+            service.files().get(id).executeMediaAndDownloadTo(baos);
+            var content = new String(baos.toByteArray(), "UTF-8");
+            return new String[] {content, "OK"};
+        } catch(Exception ex) {
+            return new String[] {"", "Error: " + ex.getMessage() };
+        }
+    }
+
     public String storeRecipes(String recipesJson, java.io.File dumpFile, String accessToken) {
         String value = "OK";
         try {
 
-            try (var writer = new PrintWriter(dumpFile)) {
+            try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
                 writer.print(recipesJson);
             }
 
@@ -45,7 +83,7 @@ public class GoogleDrivePlugin {
 
             File file = new File();
             file.setName("recipes.dump");
-            file.setParents(Collections.singletonList("appDataFolder"));
+            // file.setParents(Collections.singletonList("appDataFolder"));
             FileContent content = new FileContent("application/json", dumpFile);
             service.files().create(file, content).execute();
 
