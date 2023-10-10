@@ -15,6 +15,7 @@ npx cap sync
 
 * [`echo(...)`](#echo)
 * [`storeRecipes(...)`](#storerecipes)
+* [`fetchRecipes(...)`](#fetchrecipes)
 
 </docgen-index>
 
@@ -47,6 +48,21 @@ storeRecipes(options: { recipesJson: string; authToken: string; }) => Promise<{ 
 | **`options`** | <code>{ recipesJson: string; authToken: string; }</code> |
 
 **Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
+
+--------------------
+
+
+### fetchRecipes(...)
+
+```typescript
+fetchRecipes(options: { authToken: string; }) => Promise<{ recipesJson: string; status: string; }>
+```
+
+| Param         | Type                                |
+| ------------- | ----------------------------------- |
+| **`options`** | <code>{ authToken: string; }</code> |
+
+**Returns:** <code>Promise&lt;{ recipesJson: string; status: string; }&gt;</code>
 
 --------------------
 

@@ -10,11 +10,11 @@ export class GoogleDrivePluginWeb extends WebPlugin implements GoogleDrivePlugin
 
   async storeRecipes(options: { recipesJson: string, authToken: string }): Promise<{ status: string }> {
     console.log('STORE RECIPES', options);
-    return {status: "dummy"};
+    return {status: 'dummy'};
   }
 
-  async fetchRecipes(options: { auth: string }): Promise<{ recipesJson: string, status: string }> {
+  async fetchRecipes(options: { authToken: string }): Promise<{ recipesJson: string, status: string }> {
     console.log('FETCH RECIPES', options);
-    return {status: "dummy", recipesJson: "{}"};
+    return {status: 'dummy', recipesJson: '{}'};
   }
 }
