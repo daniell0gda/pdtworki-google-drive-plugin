@@ -40,12 +40,12 @@ echo(options: { value: string; }) => Promise<{ value: string; }>
 ### storeRecipes(...)
 
 ```typescript
-storeRecipes(options: { recipesJson: string; authToken: string; }) => Promise<{ status: string; }>
+storeRecipes(options: { recipesJson: string; authToken: string; appName: string; }) => Promise<{ status: string; }>
 ```
 
-| Param         | Type                                                     |
-| ------------- | -------------------------------------------------------- |
-| **`options`** | <code>{ recipesJson: string; authToken: string; }</code> |
+| Param         | Type                                                                      |
+| ------------- | ------------------------------------------------------------------------- |
+| **`options`** | <code>{ recipesJson: string; authToken: string; appName: string; }</code> |
 
 **Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
 
@@ -55,12 +55,12 @@ storeRecipes(options: { recipesJson: string; authToken: string; }) => Promise<{ 
 ### fetchRecipes(...)
 
 ```typescript
-fetchRecipes(options: { authToken: string; }) => Promise<{ recipesJson: string; status: string; }>
+fetchRecipes(options: { authToken: string; appName: string; }) => Promise<{ recipesJson: string; status: string; }>
 ```
 
-| Param         | Type                                |
-| ------------- | ----------------------------------- |
-| **`options`** | <code>{ authToken: string; }</code> |
+| Param         | Type                                                 |
+| ------------- | ---------------------------------------------------- |
+| **`options`** | <code>{ authToken: string; appName: string; }</code> |
 
 **Returns:** <code>Promise&lt;{ recipesJson: string; status: string; }&gt;</code>
 

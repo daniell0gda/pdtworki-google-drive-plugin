@@ -1,6 +1,6 @@
 {
   "name": "pdtworki-google-drive",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "Integration with Google Drive",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -44,9 +44,9 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@capacitor/docgen": "^0.0.18",
     "@capacitor/android": "^5.0.5",
     "@capacitor/core": "^5.0.3",
+    "@capacitor/docgen": "^0.0.18",
     "@capacitor/ios": "^5.0.5",
     "@ionic/eslint-config": "^0.3.0",
     "@ionic/prettier-config": "^1.0.1",
@@ -74,5 +74,8 @@
     "android": {
       "src": "android"
     }
+  },
+  "dependencies": {
+    "pdtworki-google-drive": "^0.0.5"
   }
 }

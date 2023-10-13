@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 public class GoogleDrivePlugin {
 
-    public String[] fetchRecipes(String accessToken) throws IOException
+    public String[] fetchRecipes(String accessToken, String appName) throws IOException
     {
         try {
             var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
@@ -37,7 +37,7 @@ public class GoogleDrivePlugin {
             Drive service = new Drive.Builder(new NetHttpTransport(),
                     GsonFactory.getDefaultInstance(),
                     requestInitializer)
-                    .setApplicationName("Piwotworki")
+                    .setApplicationName(appName)
                     .build();
             var fileList = service
                     .files()
@@ -62,7 +62,7 @@ public class GoogleDrivePlugin {
         }
     }
 
-    public String storeRecipes(String recipesJson, java.io.File dumpFile, String accessToken) {
+    public String storeRecipes(String recipesJson, java.io.File dumpFile, String accessToken, String appName) {
         String value = "OK";
         try {
 
@@ -78,7 +78,7 @@ public class GoogleDrivePlugin {
             Drive service = new Drive.Builder(new NetHttpTransport(),
                     GsonFactory.getDefaultInstance(),
                     requestInitializer)
-                    .setApplicationName("Piwotworki")
+                    .setApplicationName(appName)
                     .build();
 
             File file = new File();

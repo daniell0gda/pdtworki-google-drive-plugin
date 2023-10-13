@@ -24,8 +24,10 @@ public class GoogleDrivePluginPlugin extends Plugin {
         try {
             String recipesJson = call.getString("recipesJson");
             String authToken = call.getString("authToken");
+            String appName = call.getString("appName");
+
             File dumpFile = File.createTempFile("recipes_", ".dump", getContext().getCacheDir());
-            String retVal = implementation.storeRecipes(recipesJson, dumpFile, authToken);
+            String retVal = implementation.storeRecipes(recipesJson, dumpFile, authToken, appName);
             JSObject ret = new JSObject();
             ret.put("status", retVal);
             call.resolve(ret);
@@ -40,7 +42,8 @@ public class GoogleDrivePluginPlugin extends Plugin {
     public void fetchRecipes(PluginCall call) {
         try {
             String authToken = call.getString("authToken");
-            String[] retVal = implementation.fetchRecipes(authToken);
+            String appName = call.getString("appName");
+            String[] retVal = implementation.fetchRecipes(authToken, appName);
 
             JSObject ret = new JSObject();
             ret.put("recipesJson", retVal[0]);
