@@ -14,8 +14,10 @@ npx cap sync
 <docgen-index>
 
 * [`echo(...)`](#echo)
-* [`storeRecipes(...)`](#storerecipes)
-* [`fetchRecipes(...)`](#fetchrecipes)
+* [`storeAppData(...)`](#storeappdata)
+* [`fetchAppData(...)`](#fetchappdata)
+* [`fetchSyncData(...)`](#fetchsyncdata)
+* [`hasAppDataOnDrive(...)`](#hasappdataondrive)
 
 </docgen-index>
 
@@ -37,32 +39,62 @@ echo(options: { value: string; }) => Promise<{ value: string; }>
 --------------------
 
 
-### storeRecipes(...)
+### storeAppData(...)
 
 ```typescript
-storeRecipes(options: { recipesJson: string; authToken: string; appName: string; }) => Promise<{ status: string; }>
+storeAppData(options: { appData: string; authToken: string; appName: string; syncState: string; }) => Promise<{ status: string; }>
 ```
 
-| Param         | Type                                                                      |
-| ------------- | ------------------------------------------------------------------------- |
-| **`options`** | <code>{ recipesJson: string; authToken: string; appName: string; }</code> |
+| Param         | Type                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ appData: string; authToken: string; appName: string; syncState: string; }</code> |
 
 **Returns:** <code>Promise&lt;{ status: string; }&gt;</code>
 
 --------------------
 
 
-### fetchRecipes(...)
+### fetchAppData(...)
 
 ```typescript
-fetchRecipes(options: { authToken: string; appName: string; }) => Promise<{ recipesJson: string; status: string; }>
+fetchAppData(options: { authToken: string; appName: string; }) => Promise<{ appData: string; status: string; }>
 ```
 
 | Param         | Type                                                 |
 | ------------- | ---------------------------------------------------- |
 | **`options`** | <code>{ authToken: string; appName: string; }</code> |
 
-**Returns:** <code>Promise&lt;{ recipesJson: string; status: string; }&gt;</code>
+**Returns:** <code>Promise&lt;{ appData: string; status: string; }&gt;</code>
+
+--------------------
+
+
+### fetchSyncData(...)
+
+```typescript
+fetchSyncData(options: { authToken: string; appName: string; }) => Promise<{ syncState: string; status: string; }>
+```
+
+| Param         | Type                                                 |
+| ------------- | ---------------------------------------------------- |
+| **`options`** | <code>{ authToken: string; appName: string; }</code> |
+
+**Returns:** <code>Promise&lt;{ syncState: string; status: string; }&gt;</code>
+
+--------------------
+
+
+### hasAppDataOnDrive(...)
+
+```typescript
+hasAppDataOnDrive(options: { authToken: string; }) => Promise<{ result: boolean; status: string; }>
+```
+
+| Param         | Type                                |
+| ------------- | ----------------------------------- |
+| **`options`** | <code>{ authToken: string; }</code> |
+
+**Returns:** <code>Promise&lt;{ result: boolean; status: string; }&gt;</code>
 
 --------------------
 

@@ -8,10 +8,12 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 @CapacitorPlugin(name = "GoogleDrivePlugin")
 public class GoogleDrivePluginPlugin extends Plugin {
-    private GoogleDrivePlugin implementation = new GoogleDrivePlugin();
+    private final GoogleDrivePlugin implementation = new GoogleDrivePlugin();
+
     @PluginMethod
     public void echo(PluginCall call) {
         String value = call.getString("value");
@@ -19,41 +21,87 @@ public class GoogleDrivePluginPlugin extends Plugin {
         ret.put("value", implementation.echo(value));
         call.resolve(ret);
     }
-    @PluginMethod
-    public void storeRecipes(PluginCall call) {
-        try {
-            String recipesJson = call.getString("recipesJson");
-            String authToken = call.getString("authToken");
-            String appName = call.getString("appName");
-
-            File dumpFile = File.createTempFile("recipes_", ".dump", getContext().getCacheDir());
-            String retVal = implementation.storeRecipes(recipesJson, dumpFile, authToken, appName);
-            JSObject ret = new JSObject();
-            ret.put("status", retVal);
-            call.resolve(ret);
-        } catch(IOException ex) {
-            JSObject ret = new JSObject();
-            ret.put("status", "IOException: " + ex.getMessage());
-            call.resolve(ret);
-        }
-    }
 
     @PluginMethod
-    public void fetchRecipes(PluginCall call) {
+    public void hasDataOnDrive(PluginCall call) {
         try {
             String authToken = call.getString("authToken");
-            String appName = call.getString("appName");
-            String[] retVal = implementation.fetchRecipes(authToken, appName);
+            Object[] retVal = implementation.hasAppDataOnDrive(authToken);
 
             JSObject ret = new JSObject();
-            ret.put("recipesJson", retVal[0]);
+            ret.put("result", retVal[0]);
             ret.put("status", retVal[1]);
             call.resolve(ret);
-        } catch(IOException ex) {
+        } catch (IOException ex) {
             JSObject ret = new JSObject();
             ret.put("status", "IOException: " + ex.getMessage());
             call.resolve(ret);
         }
     }
 
+    @PluginMethod
+    public void storeAppData(PluginCall call) {
+        try {
+            String appData = call.getString("appData");
+            String syncState = call.getString("syncState");
+            String authToken = call.getString("authToken");
+            String appName = call.getString("appName");
+
+            File appDataDumpFile = File.createTempFile("appData_", ".dump", getContext().getCacheDir());
+            String storeAppDataStatus = implementation.storeAppData(appData, appDataDumpFile, authToken, appName);
+
+            File syncStateDumpFile = File.createTempFile("syncState_", ".dump", getContext().getCacheDir());
+            String syncStateStatus = implementation.storeSyncData(syncState, syncStateDumpFile, authToken, appName);
+
+            JSObject ret = new JSObject();
+            if (Objects.equals(storeAppDataStatus, "OK") && Objects.equals(syncStateStatus, "OK")) {
+                ret.put("status", "OK");
+            }
+            else{
+                ret.put("status", storeAppDataStatus + " | " + syncStateStatus);
+            }
+
+            call.resolve(ret);
+        } catch (IOException ex) {
+            JSObject ret = new JSObject();
+            ret.put("status", "IOException: " + ex.getMessage());
+            call.resolve(ret);
+        }
+    }
+
+    @PluginMethod
+    public void fetchAppData(PluginCall call) {
+        try {
+            String authToken = call.getString("authToken");
+            String appName = call.getString("appName");
+            String[] retVal = implementation.fetchAppData(authToken, appName);
+
+            JSObject ret = new JSObject();
+            ret.put("appData", retVal[0]);
+            ret.put("status", retVal[1]);
+            call.resolve(ret);
+        } catch (IOException ex) {
+            JSObject ret = new JSObject();
+            ret.put("status", "IOException: " + ex.getMessage());
+            call.resolve(ret);
+        }
+    }
+
+    @PluginMethod
+    public void fetchSyncData(PluginCall call) {
+        try {
+            String authToken = call.getString("authToken");
+            String appName = call.getString("appName");
+            String[] retVal = implementation.fetchSyncState(authToken, appName);
+
+            JSObject ret = new JSObject();
+            ret.put("syncState", retVal[0]);
+            ret.put("status", retVal[1]);
+            call.resolve(ret);
+        } catch (IOException ex) {
+            JSObject ret = new JSObject();
+            ret.put("status", "IOException: " + ex.getMessage());
+            call.resolve(ret);
+        }
+    }
 }

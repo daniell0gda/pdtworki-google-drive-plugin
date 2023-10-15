@@ -1,5 +1,5 @@
 package com.piwotworki.app.plugins.googledrive;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -13,56 +13,115 @@ import com.google.auth.oauth2.GoogleCredentials;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.io.ByteArrayOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class GoogleDrivePlugin {
 
-    public String[] fetchRecipes(String accessToken, String appName) throws IOException
-    {
+    private final String DATA_FILENAME = "appData";
+    private final String SYNC_FILENAME = "syncState";
+
+    public Object[] hasAppDataOnDrive(String accessToken) throws IOException {
         try {
-            var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
-            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
-            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
-            Drive service = new Drive.Builder(new NetHttpTransport(),
-                    GsonFactory.getDefaultInstance(),
-                    requestInitializer)
-                    .setApplicationName(appName)
-                    .build();
-            var fileList = service
-                    .files()
-                    .list()
-                    // .setQ("'appDataFolder' in parents and name = 'recipes.dump'")
-                    .setQ("name = 'recipes.dump'")
-                    .execute();
-            var foundFiles = fileList.getFiles();
-            if(foundFiles.isEmpty()) {
-                return new String[] { "No file found", "NOT_OK" };
-            }
+            Drive service = getDrive(accessToken, "Piwotworki");
+            var isEmpty = queryForFile(service, DATA_FILENAME).isEmpty();
 
-            var foundFile = foundFiles.get(0);
-            var id = foundFile.getId();
-            var baos = new ByteArrayOutputStream();
-
-            service.files().get(id).executeMediaAndDownloadTo(baos);
-            var content = new String(baos.toByteArray(), "UTF-8");
-            return new String[] {content, "OK"};
-        } catch(Exception ex) {
-            return new String[] {"", "Error: " + ex.getMessage() };
+            return new Object[]{
+                    isEmpty,
+                    "OK"
+            };
+        } catch (Exception ex) {
+            return new String[]{"", "Error: " + ex.getMessage()};
         }
     }
 
-    public String storeRecipes(String recipesJson, java.io.File dumpFile, String accessToken, String appName) {
+    public String[] fetchSyncState(String accessToken, String appName) throws IOException {
+        try {
+
+            Drive service = getDrive(accessToken, appName);
+
+            var syncFiles = queryForFile(service, SYNC_FILENAME);
+            List<File> files = syncFiles.getFiles();
+            if (files.isEmpty()) {
+                return new String[]{"Sync file not found", "EMPTY"};
+            }
+
+            var foundFile = files.get(0);
+            return downloadFile(service, foundFile);
+
+        } catch (Exception ex) {
+            return new String[]{"", "Error: " + ex.getMessage()};
+        }
+    }
+
+    public String[] fetchAppData(String accessToken, String appName) throws IOException {
+        try {
+            Drive service = getDrive(accessToken, appName);
+
+            var foundFiles = queryForFile(service, DATA_FILENAME);
+            List<File> files = foundFiles.getFiles();
+            if (files.isEmpty()) {
+                return new String[]{"App Data file not found", "EMPTY"};
+            }
+
+            var foundFile = files.get(0);
+            return downloadFile(service, foundFile);
+        } catch (Exception ex) {
+            return new String[]{"", "Error: " + ex.getMessage()};
+        }
+    }
+
+    @NonNull
+    private static Drive getDrive(String accessToken, String appName) {
+        var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
+        var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
+        HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
+        Drive service = new Drive.Builder(new NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                requestInitializer)
+                .setApplicationName(appName)
+                .build();
+        return service;
+    }
+
+    @NonNull
+    private static String[] downloadFile(Drive service, File foundFile) throws IOException {
+        var id = foundFile.getId();
+        var baos = new ByteArrayOutputStream();
+
+        service.files().get(id).executeMediaAndDownloadTo(baos);
+        var content = new String(baos.toByteArray(), "UTF-8");
+        return new String[]{content, "OK"};
+    }
+
+    public String storeAppData(String json, java.io.File dumpFile, String accessToken, String appName) {
+        String value = "OK";
+        try {
+
+            try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
+                writer.print(json);
+            }
+
+            Drive service = getDrive(accessToken, appName);
+
+            File file = new File();
+            file.setName(String.format("%s.dump", DATA_FILENAME));
+            // file.setParents(Collections.singletonList("appDataFolder"));
+            FileContent content = new FileContent("application/json", dumpFile);
+            service.files().create(file, content).execute();
+
+        } catch (Exception ex) {
+            value = ex.getMessage();
+        }
+        Log.i("Storing sync data done", value);
+        return value;
+    }
+
+    public String storeSyncData(String recipesJson, java.io.File dumpFile, String accessToken, String appName) {
         String value = "OK";
         try {
 
@@ -70,43 +129,35 @@ public class GoogleDrivePlugin {
                 writer.print(recipesJson);
             }
 
-            var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
-            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
-            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
-
-            // Build a new authorized API client service.
-            Drive service = new Drive.Builder(new NetHttpTransport(),
-                    GsonFactory.getDefaultInstance(),
-                    requestInitializer)
-                    .setApplicationName(appName)
-                    .build();
+            Drive service = getDrive(accessToken, appName);
 
             File file = new File();
-            file.setName("recipes.dump");
+            file.setName(String.format("%s.dump", SYNC_FILENAME));
             // file.setParents(Collections.singletonList("appDataFolder"));
             FileContent content = new FileContent("application/json", dumpFile);
             service.files().create(file, content).execute();
 
-        } catch( Exception ex) {
+        } catch (Exception ex) {
             value = ex.getMessage();
         }
         Log.i("Echo", value);
         return value;
     }
 
-    public String echo(String accessToken)  {
+    private FileList queryForFile(Drive service, String fileName) throws IOException {
+
+        return service
+                .files()
+                .list()
+                // .setQ("'appDataFolder' in parents and name = 'appData.dump'")
+                .setQ(String.format("name = '%s.dump'", fileName))
+                .execute();
+    }
+
+    public String echo(String accessToken) {
         String value = "gdrive";
         try {
-            var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
-            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
-            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
-
-            // Build a new authorized API client service.
-            Drive service = new Drive.Builder(new NetHttpTransport(),
-                    GsonFactory.getDefaultInstance(),
-                    requestInitializer)
-                    .setApplicationName("Piwotworki")
-                    .build();
+            Drive service = getDrive(accessToken, "Piwotworki");
 
             var diskFile = new java.io.File("/data/user/0/com.piwotworki.app/files/INSTALLATION");
             File file = new File();
@@ -136,7 +187,7 @@ public class GoogleDrivePlugin {
 
             value = "Files found: " + files.size();
 */
-        } catch( Exception ex) {
+        } catch (Exception ex) {
             value = ex.getMessage();
         }
         Log.i("Echo", value);
