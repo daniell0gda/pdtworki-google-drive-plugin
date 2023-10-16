@@ -15,10 +15,14 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Objects;
 
 public class GoogleDrivePlugin {
 
@@ -102,8 +106,16 @@ public class GoogleDrivePlugin {
         String value = "OK";
         try {
 
+            String[] existingData = this.fetchAppData(accessToken, appName);
+
+            if (!Objects.equals(existingData[1], "OK")) {
+                return "NOT OK";
+            }
+
+            String updatedString = this.updateAppData(existingData[0], json);
+
             try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
-                writer.print(json);
+                writer.print(updatedString);
             }
 
             Drive service = getDrive(accessToken, appName);
@@ -119,6 +131,42 @@ public class GoogleDrivePlugin {
         }
         Log.i("Storing sync data done", value);
         return value;
+    }
+
+    private String updateAppData(String existing, String withNewValues) {
+        // Example JSON string representing an object
+        String jsonExisting = existing;
+
+        // JSON string representing the update object (can be empty)
+        String jsonWithNewValues = withNewValues;
+
+        try {
+            // Parse the original JSON string into a JSONObject
+            JSONObject objToBeUpdated = new JSONObject(jsonExisting);
+
+            // Parse the update JSON string into a JSONObject
+            JSONObject objWithNewValues = new JSONObject(jsonWithNewValues);
+
+            // Check if the objWithNewValues is not empty
+            var iterator = objWithNewValues.keys();
+            while (iterator.hasNext()) {
+                String key = iterator.next();
+
+                objToBeUpdated.put(key, objWithNewValues.get(key));
+            }
+
+            // Convert the updated JSONObject back to a JSON string
+            String updatedJsonString = objToBeUpdated.toString();
+
+            // Print the updated JSON string
+            System.out.println(updatedJsonString);
+
+            return updatedJsonString;
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return jsonExisting;
     }
 
     public String storeSyncData(String recipesJson, java.io.File dumpFile, String accessToken, String appName) {
