@@ -21,6 +21,7 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -84,12 +85,11 @@ public class GoogleDrivePlugin {
         var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
         var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
         HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
-        Drive service = new Drive.Builder(new NetHttpTransport(),
+        return new Drive.Builder(new NetHttpTransport(),
                 GsonFactory.getDefaultInstance(),
                 requestInitializer)
                 .setApplicationName(appName)
                 .build();
-        return service;
     }
 
     @NonNull
@@ -108,11 +108,12 @@ public class GoogleDrivePlugin {
 
             String[] existingData = this.fetchAppData(accessToken, appName);
 
-            if (!Objects.equals(existingData[1], "OK")) {
-                return "NOT OK";
+            String existing = "{}";
+            if (Objects.equals(existingData[1], "OK")) {
+                existing = existingData[0];
             }
 
-            String updatedString = this.updateAppData(existingData[0], json);
+            String updatedString = this.updateJsonObject(existing, json);
 
             try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
                 writer.print(updatedString);
@@ -120,11 +121,8 @@ public class GoogleDrivePlugin {
 
             Drive service = getDrive(accessToken, appName);
 
-            File file = new File();
-            file.setName(String.format("%s.dump", DATA_FILENAME));
-            // file.setParents(Collections.singletonList("appDataFolder"));
-            FileContent content = new FileContent("application/json", dumpFile);
-            service.files().create(file, content).execute();
+            var fileName = DATA_FILENAME;
+            createOrUpdateFile(dumpFile, service, fileName);
 
         } catch (Exception ex) {
             value = ex.getMessage();
@@ -133,7 +131,46 @@ public class GoogleDrivePlugin {
         return value;
     }
 
-    private String updateAppData(String existing, String withNewValues) {
+    private FileList listFiles(Drive service){
+        try {
+            return service.files().list()
+                    .setSpaces("appDataFolder")
+                    .setFields("nextPageToken, files(id, name)")
+                    .setPageSize(100)
+                    .execute();
+        } catch (IOException e) {
+            Log.e("CREATE", "QUERY LIST ERROR", e);
+            return new FileList();
+        }
+    }
+
+    private void createOrUpdateFile(java.io.File dumpFile, Drive service, String fileName) throws IOException, InterruptedException {
+
+        var foundFiles = queryForFile(service, fileName);
+        List<File> files = foundFiles.getFiles();
+
+        for (var driveFile : files) {
+            var fileId = driveFile.getId();
+            service.files().delete(fileId).execute();
+        }
+
+        Thread.sleep(300);
+
+        File file = new File();
+        file.setName(String.format("%s.dump", fileName));
+        file.setParents(Collections.singletonList("appDataFolder"));
+
+        try {
+            FileContent content = new FileContent("application/json", dumpFile);
+            var createResponse = service.files().create(file, content).setFields("id").execute();
+            Log.i("CREATE", createResponse.toString());
+        } catch (IOException e) {
+            Log.e("CREAtE", "Error creating file: " + e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    private String updateJsonObject(String existing, String withNewValues) {
         // Example JSON string representing an object
         String jsonExisting = existing;
 
@@ -169,22 +206,29 @@ public class GoogleDrivePlugin {
         return jsonExisting;
     }
 
-    public String storeSyncData(String recipesJson, java.io.File dumpFile, String accessToken, String appName) {
+    public String storeSyncData(String syncDataJson, java.io.File dumpFile, String accessToken, String appName) {
         String value = "OK";
         try {
 
+            String[] existingData = this.fetchSyncState(accessToken, appName);
+
+            String existing = "{}";
+            if (Objects.equals(existingData[1], "OK")) {
+                existing = existingData[0];
+            }
+
+            String updatedString = this.updateJsonObject(existing, syncDataJson);
+
             try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
-                writer.print(recipesJson);
+                writer.print(updatedString);
             }
 
             Drive service = getDrive(accessToken, appName);
 
-            File file = new File();
-            file.setName(String.format("%s.dump", SYNC_FILENAME));
-            // file.setParents(Collections.singletonList("appDataFolder"));
-            FileContent content = new FileContent("application/json", dumpFile);
-            service.files().create(file, content).execute();
+            createOrUpdateFile(dumpFile, service, SYNC_FILENAME);
 
+        } catch (IllegalStateException ex) {
+            value = "SHOULD_RELOGIN";
         } catch (Exception ex) {
             value = ex.getMessage();
         }
@@ -194,10 +238,8 @@ public class GoogleDrivePlugin {
 
     private FileList queryForFile(Drive service, String fileName) throws IOException {
 
-        return service
-                .files()
-                .list()
-                // .setQ("'appDataFolder' in parents and name = 'appData.dump'")
+        return service.files().list()
+                .setSpaces("appDataFolder")
                 .setQ(String.format("name = '%s.dump'", fileName))
                 .execute();
     }
