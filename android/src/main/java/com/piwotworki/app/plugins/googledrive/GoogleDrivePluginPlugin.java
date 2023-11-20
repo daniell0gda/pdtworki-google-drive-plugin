@@ -13,15 +13,6 @@ import java.util.Objects;
 @CapacitorPlugin(name = "GoogleDrivePlugin")
 public class GoogleDrivePluginPlugin extends Plugin {
     private final GoogleDrivePlugin implementation = new GoogleDrivePlugin();
-
-    @PluginMethod
-    public void echo(PluginCall call) {
-        String value = call.getString("value");
-        JSObject ret = new JSObject();
-        ret.put("value", implementation.echo(value));
-        call.resolve(ret);
-    }
-
     @PluginMethod
     public void hasDataOnDrive(PluginCall call) {
         try {

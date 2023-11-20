@@ -1,19 +1,19 @@
 package com.piwotworki.app.plugins.googledrive;
 
-import com.google.api.client.http.FileContent;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.drive.Drive;
-import com.google.auth.oauth2.AccessToken;
-import com.google.auth.oauth2.GoogleCredentials;
-
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+
+import com.google.api.client.http.FileContent;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,7 +21,9 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.InvalidPropertiesFormatException;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,6 +31,36 @@ public class GoogleDrivePlugin {
 
     private final String DATA_FILENAME = "appData";
     private final String SYNC_FILENAME = "syncState";
+
+    @NonNull
+    private static Drive getDrive(String accessToken, String appName) throws Exception {
+        try {
+            var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
+            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
+            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
+
+            return new Drive.Builder(
+                    new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance(),
+                    requestInitializer
+            ).setApplicationName(appName)
+                    .build();
+
+
+        } catch (Exception ex) {
+            throw new Exception("Exception while building up G-Drive Connection", ex);
+        }
+    }
+
+    @NonNull
+    private static String[] downloadFile(Drive service, File foundFile) throws IOException {
+        var id = foundFile.getId();
+        var baos = new ByteArrayOutputStream();
+
+        service.files().get(id).executeMediaAndDownloadTo(baos);
+        var content = new String(baos.toByteArray(), "UTF-8");
+        return new String[]{content, "OK"};
+    }
 
     public Object[] hasAppDataOnDrive(String accessToken) throws IOException {
         try {
@@ -47,20 +79,62 @@ public class GoogleDrivePlugin {
     public String[] fetchSyncState(String accessToken, String appName) throws IOException {
         try {
 
+            if (appName.isBlank()) {
+                throw new InvalidPropertiesFormatException("appName was not provided");
+            }
+
             Drive service = getDrive(accessToken, appName);
 
-            var syncFiles = queryForFile(service, SYNC_FILENAME);
-            List<File> files = syncFiles.getFiles();
-            if (files.isEmpty()) {
-                return new String[]{"Sync file not found", "EMPTY"};
+            List<File> files;
+
+            try {
+                files = getFileList(service, SYNC_FILENAME);
+                if (files.isEmpty()) {
+                    return new String[]{"Sync file not found", "EMPTY"};
+                }
+            } catch (Exception ex) {
+                throw new Exception("Failed getting sync file from drive." + ex.getMessage(), ex);
             }
 
             var foundFile = files.get(0);
             return downloadFile(service, foundFile);
 
+        } catch (IllegalStateException ex) {
+            return new String[]{"", "SHOULD_RELOGIN"};
         } catch (Exception ex) {
-            return new String[]{"", "Error: " + ex.getMessage()};
+
+            String value = ex.getMessage();
+            if (value == null || value.isEmpty()) {
+                value = "StoreSyncData Exception of type " + ex.getClass().getName() + " had no information";
+            }
+
+            return new String[]{"", "Error: " + value};
         }
+    }
+
+    private List<File> getFileList(Drive service, String fileName) throws Exception {
+        FileList fileListService;
+        try{
+            fileListService = queryForFile(service, fileName);
+            if (fileListService == null) {
+                throw new Exception("fileListService which should have files on drive returned something unexpected");
+            }
+        }
+        catch(Exception ex){
+            throw new Exception(String.format("Querying for file %s failed. Msg: %s Stack: %s", fileName, ex.getMessage(), Arrays.toString(ex.getStackTrace())));
+        }
+
+
+        List<File> foundFiles;
+        try {
+            foundFiles = fileListService.getFiles();
+            if (foundFiles == null) {
+                throw new Exception("Getting files from g-drive returned something unexpected");
+            }
+        } catch (Exception ex) {
+            throw new Exception(String.format("Error While getting files with name: %s, Stack: %s", fileName, Arrays.toString(ex.getStackTrace())), ex);
+        }
+        return foundFiles;
     }
 
     public String[] fetchAppData(String accessToken, String appName) throws IOException {
@@ -75,31 +149,11 @@ public class GoogleDrivePlugin {
 
             var foundFile = files.get(0);
             return downloadFile(service, foundFile);
+        } catch (IllegalStateException ex) {
+            return new String[]{"", "SHOULD_RELOGIN"};
         } catch (Exception ex) {
             return new String[]{"", "Error: " + ex.getMessage()};
         }
-    }
-
-    @NonNull
-    private static Drive getDrive(String accessToken, String appName) {
-        var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
-        var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
-        HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
-        return new Drive.Builder(new NetHttpTransport(),
-                GsonFactory.getDefaultInstance(),
-                requestInitializer)
-                .setApplicationName(appName)
-                .build();
-    }
-
-    @NonNull
-    private static String[] downloadFile(Drive service, File foundFile) throws IOException {
-        var id = foundFile.getId();
-        var baos = new ByteArrayOutputStream();
-
-        service.files().get(id).executeMediaAndDownloadTo(baos);
-        var content = new String(baos.toByteArray(), "UTF-8");
-        return new String[]{content, "OK"};
     }
 
     public String storeAppData(String json, java.io.File dumpFile, String accessToken, String appName) {
@@ -117,93 +171,110 @@ public class GoogleDrivePlugin {
 
             try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
                 writer.print(updatedString);
+            } catch (Exception ex) {
+                throw new Exception("Could not store data on temporary dump file", ex);
+            }
+
+            if (appName.isBlank()) {
+                throw new Exception("Cannot properly initialized google drive because app name was not provided");
             }
 
             Drive service = getDrive(accessToken, appName);
 
-            var fileName = DATA_FILENAME;
-            createOrUpdateFile(dumpFile, service, fileName);
+            createOrUpdateFile(service, dumpFile, DATA_FILENAME);
 
+        } catch (IllegalStateException ex) {
+            value = "SHOULD_RELOGIN";
         } catch (Exception ex) {
             value = ex.getMessage();
+            if (value == null || value.isEmpty()) {
+                value = "StoreAppData Exception of type " + ex.getClass().getName() + " had no information";
+            }
         }
         Log.i("Storing sync data done", value);
         return value;
     }
 
-    private FileList listFiles(Drive service){
-        try {
-            return service.files().list()
-                    .setSpaces("appDataFolder")
-                    .setFields("nextPageToken, files(id, name)")
-                    .setPageSize(100)
-                    .execute();
-        } catch (IOException e) {
-            Log.e("CREATE", "QUERY LIST ERROR", e);
-            return new FileList();
+    private void createOrUpdateFile(Drive service, java.io.File dumpFile, String fileName) throws Exception {
+
+        List<File> files;
+
+        if (service == null) {
+            throw new Exception("Drive was not properly provided");
         }
-    }
 
-    private void createOrUpdateFile(java.io.File dumpFile, Drive service, String fileName) throws IOException, InterruptedException {
+        if (dumpFile == null) {
+            throw new Exception("Temp file was not properly provided");
+        }
 
-        var foundFiles = queryForFile(service, fileName);
-        List<File> files = foundFiles.getFiles();
+        if (fileName.isBlank()) {
+            throw new Exception("Artifact file name was not properly provided");
+        }
 
-        for (var driveFile : files) {
-            var fileId = driveFile.getId();
-            service.files().delete(fileId).execute();
+
+        try {
+            files = getFileList(service, fileName);
+
+        } catch (Exception ex) {
+            String message = String.format("Failed getting %s files from drive. ErrMsg: %s", fileName, ex.getMessage());
+            throw new Exception(message, ex);
+        }
+
+        try {
+            for (var driveFile : files) {
+                var fileId = driveFile.getId();
+                service.files().delete(fileId).execute();
+            }
+        } catch (Exception ex) {
+            throw new Exception("Cannot Delete files on Drive." + ex.getMessage(), ex);
         }
 
         Thread.sleep(300);
 
-        File file = new File();
-        file.setName(String.format("%s.dump", fileName));
-        file.setParents(Collections.singletonList("appDataFolder"));
-
         try {
-            FileContent content = new FileContent("application/json", dumpFile);
-            var createResponse = service.files().create(file, content).setFields("id").execute();
-            Log.i("CREATE", createResponse.toString());
-        } catch (IOException e) {
-            Log.e("CREAtE", "Error creating file: " + e.getMessage(), e);
-            throw e;
+            File file = new File();
+            file.setName(String.format("%s.dump", fileName));
+            file.setParents(Collections.singletonList("appDataFolder"));
+
+            try {
+                FileContent content = new FileContent("application/json", dumpFile);
+                var createResponse = service.files().create(file, content).setFields("id").execute();
+                Log.i("CREATE", createResponse.toString());
+            } catch (Exception e) {
+                Log.e("CREAtE", "Error creating file: " + e.getMessage(), e);
+                throw new Exception("Error creating file: " + e.getMessage(), e);
+            }
+        } catch (Exception ex) {
+            throw new Exception("Cannot Create file for storing" + ex.getMessage(), ex);
         }
     }
 
-    private String updateJsonObject(String existing, String withNewValues) {
+    private String updateJsonObject(String existing, String withNewValues) throws JSONException {
         // Example JSON string representing an object
-        String jsonExisting = existing;
 
         // JSON string representing the update object (can be empty)
-        String jsonWithNewValues = withNewValues;
 
-        try {
-            // Parse the original JSON string into a JSONObject
-            JSONObject objToBeUpdated = new JSONObject(jsonExisting);
+        // Parse the original JSON string into a JSONObject
+        JSONObject objToBeUpdated = new JSONObject(existing);
 
-            // Parse the update JSON string into a JSONObject
-            JSONObject objWithNewValues = new JSONObject(jsonWithNewValues);
+        // Parse the update JSON string into a JSONObject
+        JSONObject objWithNewValues = new JSONObject(withNewValues);
 
-            // Check if the objWithNewValues is not empty
-            var iterator = objWithNewValues.keys();
-            while (iterator.hasNext()) {
-                String key = iterator.next();
+        // Check if the objWithNewValues is not empty
+        var iterator = objWithNewValues.keys();
+        while (iterator.hasNext()) {
+            String key = iterator.next();
 
-                objToBeUpdated.put(key, objWithNewValues.get(key));
-            }
-
-            // Convert the updated JSONObject back to a JSON string
-            String updatedJsonString = objToBeUpdated.toString();
-
-            // Print the updated JSON string
-            System.out.println(updatedJsonString);
-
-            return updatedJsonString;
-
-        } catch (JSONException e) {
-            e.printStackTrace();
+            objToBeUpdated.put(key, objWithNewValues.get(key));
         }
-        return jsonExisting;
+
+        // Convert the updated JSONObject back to a JSON string
+        String updatedJsonString = objToBeUpdated.toString();
+
+        // Print the updated JSON string
+        System.out.println(updatedJsonString);
+
+        return updatedJsonString;
     }
 
     public String storeSyncData(String syncDataJson, java.io.File dumpFile, String accessToken, String appName) {
@@ -217,70 +288,41 @@ public class GoogleDrivePlugin {
                 existing = existingData[0];
             }
 
-            String updatedString = this.updateJsonObject(existing, syncDataJson);
+            try {
+                String updatedString = this.updateJsonObject(existing, syncDataJson);
 
-            try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
-                writer.print(updatedString);
+                try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
+                    writer.print(updatedString);
+                }
+            } catch (Exception ex) {
+                throw new Exception("Cannot wrote new json object to stream", ex);
             }
 
             Drive service = getDrive(accessToken, appName);
 
-            createOrUpdateFile(dumpFile, service, SYNC_FILENAME);
+            createOrUpdateFile(service, dumpFile, SYNC_FILENAME);
 
         } catch (IllegalStateException ex) {
             value = "SHOULD_RELOGIN";
         } catch (Exception ex) {
             value = ex.getMessage();
+            if (value == null || value.isEmpty()) {
+                value = "StoreSyncData Exception of type " + ex.getClass().getName() + " had no information";
+            }
         }
         Log.i("Echo", value);
         return value;
     }
 
-    private FileList queryForFile(Drive service, String fileName) throws IOException {
+    private FileList queryForFile(Drive service, String fileName) throws Exception {
+
+        if (service == null) {
+            throw new Exception("G-drive cannot be null");
+        }
 
         return service.files().list()
                 .setSpaces("appDataFolder")
-                .setQ(String.format("name = '%s.dump'", fileName))
+                .setQ(String.format("name contains '%s' and trashed=false", fileName))
                 .execute();
-    }
-
-    public String echo(String accessToken) {
-        String value = "gdrive";
-        try {
-            Drive service = getDrive(accessToken, "Piwotworki");
-
-            var diskFile = new java.io.File("/data/user/0/com.piwotworki.app/files/INSTALLATION");
-            File file = new File();
-            file.setName("Hello, world.txt");
-            FileContent content = new FileContent("text/plain", diskFile);
-            service.files().create(file, content).execute();
-/*
-            List<File> files = new ArrayList<File>();
-
-            String pageToken = null;
-            do {
-                FileList result = service.files().list()
-                        // .setQ("mimeType='image/jpeg'")
-                        .setSpaces("drive")
-                        // .setFields("nextPageToken, items(id, title)")
-                        // .setPageToken(pageToken)
-                        .execute();
-                for (File file : result.getFiles()) {
-                    System.out.printf("Found file: %s (%s)\n",
-                            file.getName(), file.getId());
-                }
-
-                files.addAll(result.getFiles());
-
-                pageToken = result.getNextPageToken();
-            } while (pageToken != null);
-
-            value = "Files found: " + files.size();
-*/
-        } catch (Exception ex) {
-            value = ex.getMessage();
-        }
-        Log.i("Echo", value);
-        return value;
     }
 }
