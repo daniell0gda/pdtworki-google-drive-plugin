@@ -84,9 +84,13 @@ public class GoogleDrivePluginPlugin extends Plugin {
             String authToken = call.getString("authToken");
             String appName = call.getString("appName");
             String[] retVal = implementation.fetchSyncState(authToken, appName);
+            String existing = "";
+            if (Objects.equals(retVal[1], "OK")) {
+                existing = retVal[0];
+            }
 
             JSObject ret = new JSObject();
-            ret.put("syncState", retVal[0]);
+            ret.put("syncState", existing);
             ret.put("status", retVal[1]);
             call.resolve(ret);
         } catch (IOException ex) {
