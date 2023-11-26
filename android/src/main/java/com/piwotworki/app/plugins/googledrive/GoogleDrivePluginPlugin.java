@@ -5,6 +5,8 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.tasks.Task;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,6 +72,7 @@ public class GoogleDrivePluginPlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("appData", retVal[0]);
             ret.put("status", retVal[1]);
+            ret.put("newAccessToken", authToken);
             call.resolve(ret);
         } catch (IOException ex) {
             JSObject ret = new JSObject();
@@ -92,6 +95,7 @@ public class GoogleDrivePluginPlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("syncState", existing);
             ret.put("status", retVal[1]);
+            ret.put("newAccessToken", authToken);
             call.resolve(ret);
         } catch (IOException ex) {
             JSObject ret = new JSObject();
