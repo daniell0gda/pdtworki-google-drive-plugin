@@ -4,16 +4,22 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.StoredCredential;
+import com.google.api.client.extensions.appengine.datastore.AppEngineDataStoreFactory;
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.store.DataStore;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.OAuth2Credentials;
+
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,11 +38,19 @@ public class GoogleDrivePlugin {
     private final String DATA_FILENAME = "appData";
     private final String SYNC_FILENAME = "syncState";
 
+
     @NonNull
-    private static Drive getDrive(String accessToken, String appName) throws Exception {
+    private Drive getDrive(
+            String accessToken,
+            String appName
+    ) throws Exception {
+
+
         try {
             var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
-            var credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
+            GoogleCredentials credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
+            credential.refreshIfExpired();
+
             HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credential);
 
             return new Drive.Builder(
@@ -89,7 +103,7 @@ public class GoogleDrivePlugin {
 
             try {
                 files = getFileList(service, SYNC_FILENAME);
-                if (files.isEmpty()) {
+                if (files == null || files.isEmpty()) {
                     return new String[]{"Sync file not found", "EMPTY"};
                 }
             } catch (Exception ex) {
@@ -116,9 +130,6 @@ public class GoogleDrivePlugin {
         FileList fileListService;
         try{
             fileListService = queryForFile(service, fileName);
-            if (fileListService == null) {
-                throw new Exception("fileListService which should have files on drive returned something unexpected");
-            }
         }
         catch(Exception ex){
             throw new Exception(String.format("Querying for file %s failed. Msg: %s Stack: %s", fileName, ex.getMessage(), Arrays.toString(ex.getStackTrace())));
@@ -129,7 +140,7 @@ public class GoogleDrivePlugin {
         try {
             foundFiles = fileListService.getFiles();
             if (foundFiles == null) {
-                throw new Exception("Getting files from g-drive returned something unexpected");
+                return null;
             }
         } catch (Exception ex) {
             throw new Exception(String.format("Error While getting files with name: %s, Stack: %s", fileName, Arrays.toString(ex.getStackTrace())), ex);
@@ -143,7 +154,7 @@ public class GoogleDrivePlugin {
 
             var foundFiles = queryForFile(service, DATA_FILENAME);
             List<File> files = foundFiles.getFiles();
-            if (files.isEmpty()) {
+            if (files == null || files.isEmpty()) {
                 return new String[]{"App Data file not found", "EMPTY"};
             }
 
@@ -220,14 +231,17 @@ public class GoogleDrivePlugin {
             throw new Exception(message, ex);
         }
 
-        try {
-            for (var driveFile : files) {
-                var fileId = driveFile.getId();
-                service.files().delete(fileId).execute();
+        if(files != null){
+            try {
+                for (var driveFile : files) {
+                    var fileId = driveFile.getId();
+                    service.files().delete(fileId).execute();
+                }
+            } catch (Exception ex) {
+                throw new Exception("Cannot Delete files on Drive." + ex.getMessage(), ex);
             }
-        } catch (Exception ex) {
-            throw new Exception("Cannot Delete files on Drive." + ex.getMessage(), ex);
         }
+
 
         Thread.sleep(300);
 
