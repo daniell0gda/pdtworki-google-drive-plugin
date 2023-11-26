@@ -49,11 +49,18 @@ repositories {
 
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+ implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation project(':capacitor-android')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation 'com.google.apis:google-api-services-drive:v3-rev20230822-2.0.0'
-    implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
+    implementation 'com.google.auth:google-auth-library-oauth2-http:1.20.0'
+//     implementation 'com.google.api-client:google-api-client-android:2.2.0'
+//     implementation 'com.google.api-client:google-api-client-appengine:2.2.0'
+//     implementation 'com.google.http-client:google-http-client-android:1.43.3'
+
+
+    implementation 'com.google.android.gms:play-services-base:18.2.0'
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
