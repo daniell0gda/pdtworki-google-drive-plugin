@@ -72,14 +72,14 @@ fetchAppData(options: { authToken: string; appName: string; }) => Promise<{ appD
 ### fetchSyncData(...)
 
 ```typescript
-fetchSyncData(options: { authToken: string; appName: string; }) => Promise<{ syncState: string; status: string; }>
+fetchSyncData(options: { authToken: string; appName: string; }) => Promise<{ syncState: string; status: string; newAccessToken: string; }>
 ```
 
 | Param         | Type                                                 |
 | ------------- | ---------------------------------------------------- |
 | **`options`** | <code>{ authToken: string; appName: string; }</code> |
 
-**Returns:** <code>Promise&lt;{ syncState: string; status: string; }&gt;</code>
+**Returns:** <code>Promise&lt;{ syncState: string; status: string; newAccessToken: string; }&gt;</code>
 
 --------------------
 

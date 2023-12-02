@@ -4,9 +4,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.auth.oauth2.StoredCredential;
-import com.google.api.client.extensions.appengine.datastore.AppEngineDataStoreFactory;
+
 import com.google.api.client.http.FileContent;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -29,6 +27,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.InvalidPropertiesFormatException;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +46,11 @@ public class GoogleDrivePlugin {
 
 
         try {
+
+            long timestampWhenTokenGeneratedInSecond = 1678956050; // Replace this with the timestamp when access token was generated
+            long tokenExpiresInSecond = 3599; // Replace this with your access token expiration time
+            long expirationTimeInMS = (timestampWhenTokenGeneratedInSecond + tokenExpiresInSecond) * 1000; // Convert it to milliseconds
+
             var token = AccessToken.newBuilder().setTokenValue(accessToken).build();
             GoogleCredentials credential = GoogleCredentials.newBuilder().setAccessToken(token).build();
             credential.refreshIfExpired();
@@ -64,6 +68,12 @@ public class GoogleDrivePlugin {
         } catch (Exception ex) {
             throw new Exception("Exception while building up G-Drive Connection", ex);
         }
+    }
+
+    public long getSecondsUntilExpiration(Date expirationTime) {
+        Date currentTime = new Date();
+        long millisecondsUntilExpiration = expirationTime.getTime() - currentTime.getTime();
+        return millisecondsUntilExpiration / 1000; // Convert milliseconds to seconds
     }
 
     @NonNull

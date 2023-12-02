@@ -21,11 +21,15 @@ export class GoogleDrivePluginWeb extends WebPlugin implements GoogleDrivePlugin
     };
   }
 
-  async fetchSyncData(options: { authToken: string }): Promise<{ syncState: string, status: string }> {
+  async fetchSyncData(options: { authToken: string }): Promise<{
+    syncState: string,
+    status: string,
+    newAccessToken: string}> {
     console.log('FETCH RECIPES', options);
     return {
       status: 'dummy',
-      syncState: '{}'
+      syncState: '{}',
+      newAccessToken: ''
     };
   }
 
