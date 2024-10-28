@@ -25,6 +25,7 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -82,7 +83,7 @@ public class GoogleDrivePlugin {
         var baos = new ByteArrayOutputStream();
 
         service.files().get(id).executeMediaAndDownloadTo(baos);
-        var content = new String(baos.toByteArray(), "UTF-8");
+        var content = baos.toString(StandardCharsets.UTF_8);
         return new String[]{content, "OK"};
     }
 
@@ -190,7 +191,7 @@ public class GoogleDrivePlugin {
 
             String updatedString = this.updateJsonObject(existing, json);
 
-            try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
+            try (var writer = new PrintWriter(dumpFile, StandardCharsets.UTF_8)) {
                 writer.print(updatedString);
             } catch (Exception ex) {
                 throw new Exception("Could not store data on temporary dump file", ex);
@@ -315,7 +316,7 @@ public class GoogleDrivePlugin {
             try {
                 String updatedString = this.updateJsonObject(existing, syncDataJson);
 
-                try (var writer = new PrintWriter(dumpFile, "UTF-8")) {
+                try (var writer = new PrintWriter(dumpFile, StandardCharsets.UTF_8)) {
                     writer.print(updatedString);
                 }
             } catch (Exception ex) {
